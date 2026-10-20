@@ -1,5 +1,8 @@
 # Personal AI Brain
 
+> **Prototype:** Diya is under active development. Features and APIs may change,
+> and the project is not production-ready.
+
 A local assistant for general questions, practical help, and reasoning that can
 also answer from files you provide. Documents, embeddings, memories, and
 generated answers stay on this machine. The API listens on
