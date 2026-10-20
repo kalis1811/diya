@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+data/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.pytest-tmp/
+tools/
+storage/
+/lib/
+ui-ux-pro-max/
+ui-ux-pro-max.zip
+Thumbs.db
+.DS_Store

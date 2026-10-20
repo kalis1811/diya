@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b45">
+  <title>Diya — your AI assistant</title>
+  <link rel="stylesheet" href="/static/app.css?v=rag-library-1">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Diya home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span><strong>diya</strong><small>your AI assistant</small></span>
+      </a>
+      <button class="new-chat" id="new-chat" type="button"><span aria-hidden="true">＋</span> New conversation</button>
+      <div class="side-label">YOUR SPACE</div>
+      <button class="side-link active" type="button" aria-current="page"><span class="side-icon">◌</span> Chat</button>
+      <button class="side-link" id="show-knowledge" type="button"><span class="side-icon">▤</span> Knowledge base</button>
+      <button class="side-link" id="show-memories" type="button"><span class="side-icon">⌁</span> Things Diya remembers</button>
+      <button class="side-link" id="show-admin" type="button"><span class="side-icon">⚙</span> Admin</button>
+      <div class="side-label recent-heading">RECENT CONVERSATIONS</div>
+      <div id="recent-conversations" class="recent-conversations"></div>
+      <div class="sidebar-bottom">
+        <div class="connection"><span class="connection-dot" id="connection-dot"></span><span><strong id="connection-label">Connecting…</strong><small id="connection-detail">Checking local services</small></span></div>
+        <div class="local-note"><span aria-hidden="true">⌂</span> Your files stay on this computer</div>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mini">d</span> Diya</div>
+        <div class="model-status"><span class="model-orb"></span><span id="model-name">Local assistant</span><span class="status-divider"></span><span id="index-status">Checking knowledge base</span></div>
+        <button class="icon-button" id="about-button" type="button" aria-label="About Diya" title="About Diya">ⓘ</button>
+      </header>
+
+      <section class="conversation" id="conversation" aria-live="polite">
+        <div class="welcome" id="welcome">
+          <div class="welcome-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="welcome-kicker">A little help, right here</p>
+          <h1>What’s on your mind?</h1>
+          <p class="welcome-copy">Ask a question, think something through, or drop in a document and Diya will explain it in plain language.</p>
+          <div class="starter-prompts">
+            <button class="prompt-card" type="button" data-prompt="Help me make a simple study plan."><span class="prompt-icon">▤</span><span><strong>Plan my study time</strong><small>Make a plan that fits my day</small></span><span class="prompt-arrow">↗</span></button>
+            <button class="prompt-card" type="button" data-prompt="Explain photosynthesis in simple words."><span class="prompt-icon">✳</span><span><strong>Explain something simply</strong><small>Turn a tricky idea into plain words</small></span><span class="prompt-arrow">↗</span></button>
+            <button class="prompt-card" type="button" data-action="upload"><span class="prompt-icon">▧</span><span><strong>Read a document</strong><small>Upload a PDF, image, or text file</small></span><span class="prompt-arrow">↗</span></button>
+          </div>
+          <section class="build-ideas" aria-labelledby="build-ideas-title">
+            <div class="ideas-heading"><div><p class="ideas-kicker">MADE FOR YOUR NEXT BUILD</p><h2 id="build-ideas-title">Three AppDeploy ideas</h2></div><span class="ideas-note">Prompts ready to copy</span></div>
+            <div class="idea-grid">
+              <article class="idea-card">
+                <div class="idea-top"><span class="idea-icon">✦</span><span class="idea-number">01</span></div>
+                <h3>Study Notes Tutor</h3>
+                <p>Turn class notes into grounded explanations, flashcards, and quick quizzes.</p>
+                <button class="copy-prompt" type="button" data-copy-prompt="Build a responsive study notes tutor for students. Let users upload PDFs and notes, organize them by subject, and ask questions answered only from their materials with clear source citations. Add a simple explanation mode, flashcard generation, and short quizzes with answer feedback. Use a calm, focused interface with a searchable library and a clear empty state. Keep API keys server-side and make upload, indexing, and answer states easy to understand."><span>Copy AppDeploy prompt</span><span aria-hidden="true">⧉</span></button>
+              </article>
+              <article class="idea-card">
+                <div class="idea-top"><span class="idea-icon">⌕</span><span class="idea-number">02</span></div>
+                <h3>Personal Knowledge Vault</h3>
+                <p>Save documents, links, and notes, then find answers with source-backed search.</p>
+                <button class="copy-prompt" type="button" data-copy-prompt="Build a private personal knowledge vault for one user. Support adding notes, documents, and saved web links; show processing status; and provide semantic search and question answering with clickable source references. Add lightweight tags, recent items, and a clean detail view that shows the matched passage. Use a warm, minimal design, responsive layout, and clear privacy controls. If a backend or external service is required, explain the setup and keep secrets out of browser code."><span>Copy AppDeploy prompt</span><span aria-hidden="true">⧉</span></button>
+              </article>
+              <article class="idea-card">
+                <div class="idea-top"><span class="idea-icon">⌂</span><span class="idea-number">03</span></div>
+                <h3>Diya Companion Dashboard</h3>
+                <p>A control room for your local assistant, knowledge index, memories, and voice.</p>
+                <button class="copy-prompt" type="button" data-copy-prompt="Build a responsive companion dashboard for Diya, a local-first personal AI assistant. Create views for assistant health, indexed knowledge, recent conversations, user-approved memories, and voice readiness. Include clear status indicators, helpful setup guidance, and controls to review or remove saved memories. Make it feel approachable and uncluttered, with a strong mobile layout. Treat personal data carefully: show where data is stored, ask before saving new memories, and never expose credentials in the frontend. Use mock data until a backend API is connected."><span>Copy AppDeploy prompt</span><span aria-hidden="true">⧉</span></button>
+              </article>
+            </div>
+            <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+          </section>
+        </div>
+        <div class="messages" id="messages"></div>
+      </section>
+
+      <footer class="composer-wrap">
+        <form class="composer" id="chat-form">
+          <div class="attachment-row" id="attachment-row" hidden><span class="file-chip" id="file-chip"></span><button type="button" class="remove-file" id="remove-file" aria-label="Remove attachment">×</button><button type="button" class="index-file" id="index-file">Add to knowledge</button></div>
+          <textarea id="question" rows="1" maxlength="8000" aria-label="Message Diya" placeholder="Ask Diya anything…"></textarea>
+          <div class="composer-tools">
+            <div class="tool-options">
+              <label class="toggle-label" title="Have Diya read her answer aloud"><input id="voice-toggle" type="checkbox" checked><span class="switch"></span><span class="toggle-icon">♫</span><span>Voice</span></label>
+              <label class="toggle-label" title="Use more time for a complex question"><input id="thinking-toggle" type="checkbox"><span class="switch"></span><span class="toggle-icon">✧</span><span>Extra thinking</span></label>
+              <button class="mic-button" id="mic-button" type="button" title="Record a message for Diya" aria-label="Record a message"><span class="mic-icon" aria-hidden="true">●</span><span id="mic-label">Speak</span></button>
+              <button class="attach-button" id="attach-button" type="button"><span aria-hidden="true">＋</span><span>Add a file</span></button>
+              <input type="file" id="file-input" hidden accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp,.txt,.md,.csv,.docx,.html,.htm">
+            </div>
+            <button class="send-button" id="send-button" type="submit" aria-label="Send message"><span>Send</span><span aria-hidden="true">↑</span></button>
+          </div>
+        </form>
+        <p class="privacy-line">Diya can make mistakes. Check important details.</p>
+      </footer>
+    </main>
+  </div>
+
+  <dialog id="info-dialog" class="info-dialog"><button class="dialog-close" data-close="info-dialog" aria-label="Close">×</button><p class="dialog-kicker">ABOUT DIYA</p><h2>Your local AI assistant</h2><p id="about-description">Diya runs on your computer and can answer questions, explain your files, and remember facts you choose to save.</p><div class="info-facts" id="about-facts"></div></dialog>
+  <dialog id="admin-dialog" class="info-dialog admin-dialog"><button class="dialog-close" data-close="admin-dialog" aria-label="Close">×</button><p class="dialog-kicker">OWNER CONTROLS</p><h2>Diya admin</h2><p>Signed in as <strong id="admin-owner">admin</strong>. This account is the only admin.</p><div id="admin-status" class="admin-status" role="status" aria-live="polite">Loading Diya status…</div><div id="admin-overview" class="admin-overview"></div><div class="admin-actions"><button id="admin-refresh" type="button">Refresh status</button><button id="admin-memories" type="button">Manage saved memories</button></div></dialog>
+  <dialog id="memory-dialog" class="info-dialog memory-dialog"><button class="dialog-close" data-close="memory-dialog" aria-label="Close">×</button><p class="dialog-kicker">YOUR SPACE</p><h2>Things Diya remembers</h2><p>Only facts and preferences you chose to share are saved here.</p><div id="memory-list" class="memory-list"></div><form id="memory-form" class="memory-form"><label for="memory-text">Add something for Diya to remember</label><div><input id="memory-text" maxlength="2000" required placeholder="I prefer short, simple explanations"><button type="submit">Save</button></div></form></dialog>
+  <dialog id="knowledge-dialog" class="info-dialog admin-dialog knowledge-dialog"><button class="dialog-close" data-close="knowledge-dialog" aria-label="Close">×</button><p class="dialog-kicker">YOUR SPACE</p><h2>Knowledge base</h2><p>Add documents for future questions. Files are stored locally and indexed on this computer.</p><form id="knowledge-form" class="memory-form"><label for="knowledge-file">Choose a document (PDF, TXT, Markdown, CSV, DOCX, HTML, or JSON)</label><div><input id="knowledge-file" type="file" accept=".pdf,.txt,.md,.csv,.docx,.html,.htm,.json" required><button id="knowledge-add" type="submit">Index file</button></div></form><div id="knowledge-status" class="admin-status" role="status" aria-live="polite"></div><div id="knowledge-list" class="memory-list"></div></dialog>
+  <script src="/static/app.js?v=rag-library-1" defer></script>
+</body>
+</html>

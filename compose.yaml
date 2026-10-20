@@ -1,0 +1,12 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: diya-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - diya_mongodb:/data/db
+
+volumes:
+  diya_mongodb:
