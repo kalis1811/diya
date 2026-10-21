@@ -35,4 +35,4 @@ packages = ["brain"]
 testpaths = ["tests"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["httpx2>=1.0.0", "pytest>=8.0"]

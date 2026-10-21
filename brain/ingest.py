@@ -220,7 +220,11 @@ def run_ingest(settings: Settings, rebuild: bool = False, embed_model=None) -> "
                                                    base_url=settings.ollama_host)
             splitter = SentenceSplitter(chunk_size=settings.chunk_size,
                                         chunk_overlap=settings.chunk_overlap)
-            vector_store = QdrantVectorStore(client=client, collection_name=COLLECTION)
+            # Local Qdrant does not support payload indexes. LlamaIndex creates
+            # a document-ID index by default, which only adds a warning here;
+            # the app does not filter queries by that internal ID.
+            vector_store = QdrantVectorStore(
+                client=client, collection_name=COLLECTION, index_doc_id=False)
             storage = StorageContext.from_defaults(vector_store=vector_store)
             # Add the replacement version first. If embedding fails, old chunks
             # remain available; stale versions are removed only after success.
