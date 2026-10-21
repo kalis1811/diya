@@ -25,6 +25,7 @@ _DEFAULTS = {
     "BRAIN_MONGODB_DATABASE": "diya",
     "BRAIN_ADMIN_USERNAME": "admin",
     "BRAIN_ADMIN_PASSWORD": "",
+    "BRAIN_AUTONOMY_LEVEL": "0",
 }
 
 
@@ -63,6 +64,11 @@ class Settings:
     mongodb_database: str = _DEFAULTS["BRAIN_MONGODB_DATABASE"]
     admin_username: str = _DEFAULTS["BRAIN_ADMIN_USERNAME"]
     admin_password: str = _DEFAULTS["BRAIN_ADMIN_PASSWORD"]
+    autonomy_level: int = int(_DEFAULTS["BRAIN_AUTONOMY_LEVEL"])
+
+    def __post_init__(self) -> None:
+        if self.autonomy_level not in range(4):
+            raise ValueError("autonomy_level must be between 0 and 3")
 
     @property
     def raw_dirs(self) -> dict[str, Path]:
@@ -71,6 +77,10 @@ class Settings:
     @property
     def memory_path(self) -> Path:
         return self.raw_dir.parent / "memory.json"
+
+    @property
+    def task_path(self) -> Path:
+        return self.raw_dir.parent / "tasks.json"
 
 
 @lru_cache
@@ -98,4 +108,5 @@ def get_settings() -> Settings:
         mongodb_database=os.environ.get("BRAIN_MONGODB_DATABASE", _DEFAULTS["BRAIN_MONGODB_DATABASE"]),
         admin_username=os.environ.get("BRAIN_ADMIN_USERNAME", _DEFAULTS["BRAIN_ADMIN_USERNAME"]),
         admin_password=os.environ.get("BRAIN_ADMIN_PASSWORD", _DEFAULTS["BRAIN_ADMIN_PASSWORD"]),
+        autonomy_level=int(os.environ.get("BRAIN_AUTONOMY_LEVEL", _DEFAULTS["BRAIN_AUTONOMY_LEVEL"])),
     )

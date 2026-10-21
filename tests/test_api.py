@@ -158,3 +158,74 @@ def test_stream_ollama_error_emits_error_event():
     r = client.post("/query/stream", json={"question": "q"})
     assert r.status_code == 200
     assert "error" in r.text and "model x returned 500" in r.text
+
+
+def test_caretaker_task_api_persists_state_and_audit_events(tmp_path):
+    from brain.caretaker import CaretakerLedger
+
+    settings = Settings(raw_dir=tmp_path / "raw", autonomy_level=3,
+                        tts_engine="off", stt_engine="off")
+    client = make_client(settings=settings)
+    created = client.post("/tasks", json={
+        "objective": "Check a configured service",
+        "scope": "Local health endpoint",
+        "planned_steps": ["health_check"],
+    })
+    assert created.status_code == 201
+    task_id = created.json()["task_id"]
+    assert created.json()["autonomy"] == 3
+
+    assert client.post(f"/tasks/{task_id}/authorize", json={
+        "consequential": True,
+    }).json() == {"permitted": False}
+    assert client.post(f"/tasks/{task_id}/authorize", json={
+        "consequential": True, "user_approved": True,
+    }).json() == {"permitted": True}
+
+    assert client.post(f"/tasks/{task_id}/transition", json={
+        "status": "running",
+    }).status_code == 200
+    assert client.post(f"/tasks/{task_id}/steps", json={
+        "step_id": "health_check",
+    }).status_code == 200
+    assert client.post(f"/tasks/{task_id}/transition", json={
+        "status": "completed",
+    }).status_code == 409
+    assert client.post(f"/tasks/{task_id}/transition", json={
+        "status": "completed", "verification_evidence": ["HTTP 200 observed"],
+    }).status_code == 200
+
+    events = client.get(f"/tasks/{task_id}/events").json()["events"]
+    assert [event["event"] for event in events] == [
+        "task_created", "action_denied", "action_authorized", "status:running",
+        "step_recorded", "status:completed",
+    ]
+    restored = CaretakerLedger(settings.task_path).get_task(task_id)
+    assert restored.status.value == "completed"
+    assert restored.verification_evidence == ("HTTP 200 observed",)
+
+
+def test_caretaker_task_api_uses_configured_autonomy_ceiling(tmp_path):
+    settings = Settings(raw_dir=tmp_path / "raw", autonomy_level=0,
+                        tts_engine="off", stt_engine="off")
+    client = make_client(settings=settings)
+    response = client.post("/tasks", json={
+        "objective": "Check service",
+        "scope": "Configured target",
+    })
+    task_id = response.json()["task_id"]
+    result = client.post(f"/tasks/{task_id}/authorize", json={
+        "consequential": True, "user_approved": True,
+    })
+    assert result.status_code == 200
+    assert result.json() == {"permitted": False}
+
+
+def test_caretaker_task_api_requires_authentication(tmp_path):
+    settings = Settings(raw_dir=tmp_path / "raw", admin_password=TEST_ADMIN_PASSWORD,
+                        tts_engine="off", stt_engine="off")
+    client = TestClient(create_app(settings=settings))
+    response = client.post("/tasks", json={
+        "objective": "Check service", "scope": "Configured target",
+    })
+    assert response.status_code == 401

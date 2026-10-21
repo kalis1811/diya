@@ -5,10 +5,12 @@ import binascii
 import secrets
 from threading import Lock
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, field_validator
 
 from brain.browser_actions import run_browser_command
@@ -23,6 +25,7 @@ from brain.memory import inferred_kind, parse_remember_command
 from brain.voice import PiperError, VoskError, resolve_stt, resolve_tts
 from brain.storage import get_storage
 from brain.scheduling import appointment_schedule
+from brain.caretaker import AutonomyLevel, CaretakerLedger, InvalidTransition, Task, TaskStatus
 
 
 class QueryRequest(BaseModel):
@@ -48,6 +51,38 @@ class MemoryRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     question: str = Field(min_length=1, max_length=800)
     correction: str = Field(min_length=1, max_length=1000)
+
+
+class TaskCreateRequest(BaseModel):
+    objective: str = Field(min_length=1, max_length=1000)
+    scope: str = Field(min_length=1, max_length=1000)
+    planned_steps: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
+        default_factory=list, max_length=50)
+    max_steps: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("objective", "scope")
+    @classmethod
+    def fields_must_not_be_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("value must contain non-whitespace text")
+        return value
+
+
+class TaskTransitionRequest(BaseModel):
+    status: TaskStatus
+    user_approved: bool = False
+    verification_evidence: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
+        default_factory=list, max_length=20)
+
+
+class TaskStepRequest(BaseModel):
+    step_id: str = Field(min_length=1, max_length=100)
+
+
+class TaskAuthorizationRequest(BaseModel):
+    consequential: bool = False
+    user_approved: bool = False
 
 
 class TextToSpeechRequest(BaseModel):
@@ -79,7 +114,8 @@ def _recent_history(storage, conversation_id: str | None) -> list[dict]:
             for item in messages if item["role"] in {"user", "assistant"}]
 
 
-def create_app(engine=None, settings=None, browser_opener=None, tts=None, stt=None) -> FastAPI:
+def create_app(engine=None, settings=None, browser_opener=None, tts=None, stt=None,
+               caretaker=None) -> FastAPI:
     settings = settings or get_settings()
     tts_status = "ready" if tts is not None else None
     if tts is None:
@@ -90,6 +126,7 @@ def create_app(engine=None, settings=None, browser_opener=None, tts=None, stt=No
     engine_lock = Lock()
     storage = get_storage(settings)
     memory_store = storage.memories
+    caretaker = caretaker or CaretakerLedger(settings.task_path)
 
     def current_engine():
         nonlocal engine
@@ -367,6 +404,88 @@ def create_app(engine=None, settings=None, browser_opener=None, tts=None, stt=No
         if not memory_store.delete(memory_id):
             raise HTTPException(404, "Memory not found.")
         return {"message": "Memory deleted."}
+
+    @app.get("/tasks")
+    def list_tasks():
+        return {"tasks": jsonable_encoder(caretaker.list_tasks())}
+
+    @app.post("/tasks", status_code=201)
+    def create_task(req: TaskCreateRequest):
+        try:
+            task = caretaker.create_task(Task(
+                objective=req.objective,
+                scope=req.scope,
+                planned_steps=tuple(req.planned_steps),
+                max_steps=req.max_steps,
+                autonomy=AutonomyLevel(settings.autonomy_level),
+            ))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return jsonable_encoder(task)
+
+    @app.get("/tasks/{task_id}")
+    def get_task(task_id: str):
+        try:
+            return jsonable_encoder(caretaker.get_task(task_id))
+        except KeyError as exc:
+            raise HTTPException(404, "Task not found.") from exc
+
+    @app.post("/tasks/{task_id}/transition")
+    def transition_task(task_id: str, req: TaskTransitionRequest):
+        try:
+            task = caretaker.transition(
+                task_id,
+                req.status,
+                user_approved=req.user_approved,
+                verification_evidence=tuple(req.verification_evidence),
+            )
+        except KeyError as exc:
+            raise HTTPException(404, "Task not found.") from exc
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from exc
+        except (InvalidTransition, ValueError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return jsonable_encoder(task)
+
+    @app.post("/tasks/{task_id}/steps")
+    def record_task_step(task_id: str, req: TaskStepRequest):
+        try:
+            caretaker.record_step(task_id, req.step_id)
+            return jsonable_encoder(caretaker.get_task(task_id))
+        except KeyError as exc:
+            raise HTTPException(404, "Task not found.") from exc
+        except InvalidTransition as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/tasks/{task_id}/authorize")
+    def authorize_task_action(task_id: str, req: TaskAuthorizationRequest):
+        try:
+            permitted = caretaker.authorize_action(
+                task_id,
+                consequential=req.consequential,
+                user_approved=req.user_approved,
+                policy_level=AutonomyLevel(settings.autonomy_level),
+            )
+        except KeyError as exc:
+            raise HTTPException(404, "Task not found.") from exc
+        return {"permitted": permitted}
+
+    @app.get("/tasks/{task_id}/events")
+    def task_events(task_id: str):
+        try:
+            caretaker.get_task(task_id)
+        except KeyError as exc:
+            raise HTTPException(404, "Task not found.") from exc
+        events = [event for event in caretaker.events if event.task_id == task_id]
+        return {"events": jsonable_encoder(events)}
+
+    @app.delete("/tasks/{task_id}")
+    def delete_task(task_id: str):
+        if not caretaker.delete_task(task_id):
+            raise HTTPException(404, "Task not found.")
+        return {"message": "Task and its audit events were deleted."}
 
     @app.post("/feedback")
     def feedback(req: FeedbackRequest):

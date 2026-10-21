@@ -43,6 +43,25 @@ def test_voice_env_override(monkeypatch):
     get_settings.cache_clear()  # don't leak into other tests
 
 
+def test_autonomy_level_defaults_to_observe(monkeypatch):
+    monkeypatch.delenv("BRAIN_AUTONOMY_LEVEL", raising=False)
+    get_settings.cache_clear()
+    assert get_settings().autonomy_level == 0
+
+
+def test_autonomy_level_env_override(monkeypatch):
+    monkeypatch.setenv("BRAIN_AUTONOMY_LEVEL", "3")
+    get_settings.cache_clear()
+    assert get_settings().autonomy_level == 3
+
+
+def test_autonomy_level_rejects_out_of_range_values():
+    import pytest
+
+    with pytest.raises(ValueError, match="between 0 and 3"):
+        Settings(autonomy_level=4)
+
+
 def test_raw_dirs_categories():
     s = Settings(raw_dir=Path("C:/tmp/x"))
     assert set(s.raw_dirs) == {"docs", "web", "chats"}
