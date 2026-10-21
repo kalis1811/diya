@@ -30,6 +30,10 @@
 @media(max-width:760px){.idea-grid{grid-template-columns:1fr}.idea-card{padding:11px}.idea-card p{margin-bottom:10px}.build-ideas{margin-top:18px;padding-top:15px}}
 @media(max-width:420px){.status-divider,#index-status{display:none}.conversation{padding-top:17px}.tool-options{gap:8px}.toggle-label span:last-child{max-width:57px}.toggle-label{gap:4px}.attach-button span:last-child{display:none}.composer textarea{font-size:13px}.welcome h1{font-size:32px}.prompt-card{min-height:65px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+.topbar-actions{display:flex;align-items:center;gap:8px}.mobile-reminders{display:none}
+.reminder-remove{flex:none;border:0;background:transparent;color:#a35a4e;font-size:11px}
+.reminder-remove:disabled{opacity:.5;cursor:wait}
+@media(max-width:760px){.mobile-reminders{display:block}}
 
 /* Keep the chat shell within the visible browser area so the composer stays reachable. */
 .app-shell{height:100vh;height:100dvh;min-height:0;overflow:hidden}

@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 
 from brain.caretaker import (
     AutonomyLevel,
@@ -123,6 +124,46 @@ def test_failed_persistence_rolls_back_task_and_audit_mutation(tmp_path):
 
     assert ledger.get_task(task.task_id).status is TaskStatus.PENDING
     assert [event.event for event in ledger.events] == ["task_created"]
+
+
+def test_due_reminder_is_explained_and_claimed_only_once(tmp_path):
+    now = datetime.now(timezone.utc)
+    ledger = CaretakerLedger(tmp_path / "tasks.json")
+    task = ledger.create_task(build_task(remind_at=(now - timedelta(minutes=1)).isoformat()))
+
+    nudges = ledger.claim_due_nudges(now)
+    assert len(nudges) == 1
+    assert nudges[0]["kind"] == "reminder"
+    assert nudges[0]["task_id"] == task.task_id
+    assert "scheduled reminder time" in nudges[0]["reason"]
+    assert ledger.claim_due_nudges(now) == []
+    assert CaretakerLedger(tmp_path / "tasks.json").claim_due_nudges(now) == []
+
+
+def test_future_reminder_is_not_sent_early():
+    now = datetime.now(timezone.utc)
+    ledger = CaretakerLedger()
+    ledger.create_task(build_task(remind_at=(now + timedelta(hours=1)).isoformat()))
+    assert ledger.claim_due_nudges(now) == []
+
+
+def test_approval_prompt_precedes_due_reminders():
+    now = datetime.now(timezone.utc)
+    ledger = CaretakerLedger()
+    reminder = ledger.create_task(build_task(
+        objective="Take a walk", remind_at=(now - timedelta(minutes=5)).isoformat()))
+    approval = ledger.create_task(build_task(objective="Send the email"))
+    ledger.transition(approval.task_id, TaskStatus.APPROVAL_REQUIRED)
+
+    nudges = ledger.claim_due_nudges(now + timedelta(seconds=1))
+    assert [item["kind"] for item in nudges] == ["approval", "reminder"]
+    assert nudges[0]["task_id"] == approval.task_id
+    assert nudges[1]["task_id"] == reminder.task_id
+
+
+def test_reminder_times_must_be_timezone_aware():
+    with pytest.raises(ValueError, match="include a timezone"):
+        build_task(remind_at="2026-10-21T09:00:00")
 
 
 @pytest.mark.parametrize("values", [

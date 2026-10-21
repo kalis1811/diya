@@ -229,3 +229,34 @@ def test_caretaker_task_api_requires_authentication(tmp_path):
         "objective": "Check service", "scope": "Configured target",
     })
     assert response.status_code == 401
+
+
+def test_caretaker_reminder_api_surfaces_due_message_once(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    settings = Settings(raw_dir=tmp_path / "raw", admin_password=TEST_ADMIN_PASSWORD,
+                        tts_engine="off", stt_engine="off")
+    client = make_client(settings=settings)
+    created = client.post("/tasks", json={
+        "objective": "Call the clinic",
+        "scope": "User-created reminder; no external action is authorized.",
+        "remind_at": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+    })
+    assert created.status_code == 201
+
+    response = client.get("/caretaker/nudges")
+    assert response.status_code == 200
+    assert response.json()["nudges"][0]["message"] == "A reminder you set: Call the clinic."
+    assert "scheduled reminder time" in response.json()["nudges"][0]["reason"]
+    assert client.get("/caretaker/nudges").json() == {"nudges": []}
+
+
+def test_caretaker_reminder_api_rejects_timezone_free_times(tmp_path):
+    settings = Settings(raw_dir=tmp_path / "raw", admin_password=TEST_ADMIN_PASSWORD,
+                        tts_engine="off", stt_engine="off")
+    client = make_client(settings=settings)
+    response = client.post("/tasks", json={
+        "objective": "Call the clinic", "scope": "User-created reminder",
+        "remind_at": "2026-10-21T09:00:00",
+    })
+    assert response.status_code == 422

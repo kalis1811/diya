@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#172b45">
   <title>Diya — your AI assistant</title>
-  <link rel="stylesheet" href="/static/app.css?v=rag-library-1">
+  <link rel="stylesheet" href="/static/app.css?v=caretaker-reminders-1">
 </head>
 <body>
   <div class="app-shell">
@@ -17,6 +17,7 @@
       <button class="new-chat" id="new-chat" type="button"><span aria-hidden="true">＋</span> New conversation</button>
       <div class="side-label">YOUR SPACE</div>
       <button class="side-link active" type="button" aria-current="page"><span class="side-icon">◌</span> Chat</button>
+      <button class="side-link" id="show-reminders" type="button"><span class="side-icon">◷</span> Reminders</button>
       <button class="side-link" id="show-knowledge" type="button"><span class="side-icon">▤</span> Knowledge base</button>
       <button class="side-link" id="show-memories" type="button"><span class="side-icon">⌁</span> Things Diya remembers</button>
       <button class="side-link" id="show-admin" type="button"><span class="side-icon">⚙</span> Admin</button>
@@ -32,7 +33,7 @@
       <header class="topbar">
         <div class="mobile-brand"><span class="brand-mini">d</span> Diya</div>
         <div class="model-status"><span class="model-orb"></span><span id="model-name">Local assistant</span><span class="status-divider"></span><span id="index-status">Checking knowledge base</span></div>
-        <button class="icon-button" id="about-button" type="button" aria-label="About Diya" title="About Diya">ⓘ</button>
+        <div class="topbar-actions"><button class="icon-button mobile-reminders" id="show-reminders-mobile" type="button" aria-label="Reminders" title="Reminders">◷</button><button class="icon-button" id="about-button" type="button" aria-label="About Diya" title="About Diya">ⓘ</button></div>
       </header>
 
       <section class="conversation" id="conversation" aria-live="polite">
@@ -98,6 +99,7 @@
   <dialog id="admin-dialog" class="info-dialog admin-dialog"><button class="dialog-close" data-close="admin-dialog" aria-label="Close">×</button><p class="dialog-kicker">OWNER CONTROLS</p><h2>Diya admin</h2><p>Signed in as <strong id="admin-owner">admin</strong>. This account is the only admin.</p><div id="admin-status" class="admin-status" role="status" aria-live="polite">Loading Diya status…</div><div id="admin-overview" class="admin-overview"></div><div class="admin-actions"><button id="admin-refresh" type="button">Refresh status</button><button id="admin-memories" type="button">Manage saved memories</button></div></dialog>
   <dialog id="memory-dialog" class="info-dialog memory-dialog"><button class="dialog-close" data-close="memory-dialog" aria-label="Close">×</button><p class="dialog-kicker">YOUR SPACE</p><h2>Things Diya remembers</h2><p>Only facts and preferences you chose to share are saved here.</p><div id="memory-list" class="memory-list"></div><form id="memory-form" class="memory-form"><label for="memory-text">Add something for Diya to remember</label><div><input id="memory-text" maxlength="2000" required placeholder="I prefer short, simple explanations"><button type="submit">Save</button></div></form></dialog>
   <dialog id="knowledge-dialog" class="info-dialog admin-dialog knowledge-dialog"><button class="dialog-close" data-close="knowledge-dialog" aria-label="Close">×</button><p class="dialog-kicker">YOUR SPACE</p><h2>Knowledge base</h2><p>Add documents for future questions. Files are stored locally and indexed on this computer.</p><form id="knowledge-form" class="memory-form"><label for="knowledge-file">Choose a document (PDF, TXT, Markdown, CSV, DOCX, HTML, or JSON)</label><div><input id="knowledge-file" type="file" accept=".pdf,.txt,.md,.csv,.docx,.html,.htm,.json" required><button id="knowledge-add" type="submit">Index file</button></div></form><div id="knowledge-status" class="admin-status" role="status" aria-live="polite"></div><div id="knowledge-list" class="memory-list"></div></dialog>
-  <script src="/static/app.js?v=rag-library-1" defer></script>
+  <dialog id="reminder-dialog" class="info-dialog admin-dialog"><button class="dialog-close" data-close="reminder-dialog" aria-label="Close">×</button><p class="dialog-kicker">YOUR SPACE</p><h2>Reminders</h2><p>Diya checks the time you set and explains why she is reminding you. Reminders appear while this app is open.</p><form id="reminder-form" class="memory-form"><label for="reminder-objective">What should I remind you about?</label><div><input id="reminder-objective" maxlength="1000" required placeholder="Call the clinic"><button id="reminder-save" type="submit">Add reminder</button></div><label for="reminder-at">Tell me at</label><div><input id="reminder-at" type="datetime-local" required><button id="reminder-refresh" type="button">Refresh</button></div></form><div id="reminder-status" class="admin-status" role="status" aria-live="polite"></div><div id="reminder-list" class="memory-list"></div></dialog>
+  <script src="/static/app.js?v=caretaker-reminders-1" defer></script>
 </body>
 </html>

@@ -49,6 +49,9 @@ class Task:
     verification_evidence: tuple[str, ...] = ()
     created_at: str = field(default_factory=lambda: _now())
     updated_at: str = field(default_factory=lambda: _now())
+    due_at: str | None = None
+    remind_at: str | None = None
+    last_nudged_at: str | None = None
 
     def __post_init__(self) -> None:
         self.autonomy = AutonomyLevel(self.autonomy)
@@ -67,6 +70,9 @@ class Task:
             raise ValueError("planned step identifiers must not be empty")
         if len(set(self.planned_steps)) != len(self.planned_steps):
             raise ValueError("planned step identifiers must be unique")
+        self.due_at = _normalize_time(self.due_at, "due_at")
+        self.remind_at = _normalize_time(self.remind_at, "remind_at")
+        self.last_nudged_at = _normalize_time(self.last_nudged_at, "last_nudged_at")
 
     def transition(
         self,
@@ -214,6 +220,80 @@ class CaretakerLedger:
             self._record(task, "step_recorded", step_id)
             self._save_or_restore(task_id, task_before, events_before)
 
+    def claim_due_nudges(self, now: datetime | None = None) -> list[dict[str, str]]:
+        """Return and persist due caretaker messages once, in explainable priority order."""
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must include a timezone")
+        now = now.astimezone(timezone.utc)
+        with self._lock:
+            candidates = []
+            for task in self._tasks.values():
+                if task.status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
+                    continue
+                due = _as_datetime(task.due_at)
+                reminder = _as_datetime(task.remind_at)
+                updated = _as_datetime(task.updated_at)
+                last_nudged = _as_datetime(task.last_nudged_at)
+                kind = None
+                trigger = None
+                priority = 99
+                if task.status is TaskStatus.APPROVAL_REQUIRED and (
+                    last_nudged is None or (updated and last_nudged < updated)
+                ):
+                    kind, trigger, priority = "approval", updated or now, 0
+                elif reminder and reminder <= now and (
+                    last_nudged is None or last_nudged < reminder
+                ):
+                    kind, trigger, priority = "reminder", reminder, 1
+                elif due and due <= now and (
+                    last_nudged is None or last_nudged < due
+                ):
+                    kind, trigger, priority = "overdue", due, 2
+                if kind is None:
+                    continue
+                candidates.append((priority, trigger, task.created_at, task, kind))
+
+            candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+            if not candidates:
+                return []
+            events_before = self._events.copy()
+            originals = {
+                item[3].task_id: (item[3].last_nudged_at, item[3].updated_at)
+                for item in candidates
+            }
+            nudges = []
+            for _priority, _trigger, _created, task, kind in candidates:
+                task.last_nudged_at = now.isoformat()
+                task.updated_at = now.isoformat()
+                self._record(task, f"nudge_sent:{kind}")
+                if kind == "approval":
+                    message = f"I’m waiting for your approval before continuing: {task.objective}."
+                    reason = "This task requires your approval before it can continue."
+                elif kind == "reminder":
+                    message = f"A reminder you set: {task.objective}."
+                    reason = "Its scheduled reminder time has arrived."
+                else:
+                    message = f"This task is past its due time: {task.objective}."
+                    reason = "The task's due time has passed."
+                nudges.append({
+                    "task_id": task.task_id,
+                    "kind": kind,
+                    "objective": task.objective,
+                    "message": message,
+                    "reason": reason,
+                    "trigger_at": _trigger.isoformat(),
+                })
+            try:
+                self._save()
+            except OSError:
+                for task in self._tasks.values():
+                    if task.task_id in originals:
+                        task.last_nudged_at, task.updated_at = originals[task.task_id]
+                self._events = events_before
+                raise
+            return nudges
+
     def _save_or_restore(
         self,
         task_id: str,
@@ -293,4 +373,21 @@ def _task_from_dict(item: dict) -> Task:
         completed_steps=list(item["completed_steps"]),
         verification_evidence=tuple(item["verification_evidence"]),
         created_at=item["created_at"], updated_at=item["updated_at"],
+        due_at=item.get("due_at"), remind_at=item.get("remind_at"),
+        last_nudged_at=item.get("last_nudged_at"),
     )
+
+
+def _as_datetime(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.fromisoformat(value).astimezone(timezone.utc)
+
+
+def _normalize_time(value: str | None, field_name: str) -> str | None:
+    if value is None:
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"{field_name} must include a timezone")
+    return parsed.astimezone(timezone.utc).isoformat()

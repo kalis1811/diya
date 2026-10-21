@@ -123,6 +123,54 @@ async function loadHealth() {
   }
 }
 
+function displayTime(value) {
+  if (!value) return 'No time set';
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+}
+
+async function loadReminders() {
+  const list = $('#reminder-list'); const status = $('#reminder-status');
+  list.replaceChildren(); status.textContent = 'Loading reminders…';
+  try {
+    const response = await fetch('/tasks'); const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not load reminders.');
+    const reminders = (data.tasks || []).filter(task => task.remind_at && !['completed', 'failed', 'cancelled'].includes(task.status));
+    if (!reminders.length) {
+      status.textContent = 'No reminders yet. Add one above and Diya will check it while the app is open.';
+      return;
+    }
+    status.textContent = `${reminders.length} active reminder${reminders.length === 1 ? '' : 's'}.`;
+    for (const item of reminders) {
+      const row = document.createElement('div'); row.className = 'memory-item';
+      const reminderState = item.last_nudged_at ? `Reminded ${displayTime(item.last_nudged_at)}` : item.status;
+      const detail = document.createElement('span'); detail.textContent = `${item.objective} · ${displayTime(item.remind_at)} · ${reminderState}`;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'reminder-remove';
+      remove.textContent = 'Remove'; remove.setAttribute('aria-label', `Remove reminder: ${item.objective}`);
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try {
+          const result = await fetch(`/tasks/${encodeURIComponent(item.task_id)}`, {method: 'DELETE'});
+          if (!result.ok) throw new Error('Could not remove this reminder.');
+          await loadReminders();
+        } catch (error) { status.textContent = error.message; remove.disabled = false; }
+      });
+      row.append(detail, remove); list.append(row);
+    }
+  } catch (error) { status.textContent = error.message; }
+}
+
+async function checkCaretakerNudges() {
+  if (document.visibilityState !== 'visible') return;
+  try {
+    const response = await fetch('/caretaker/nudges');
+    if (!response.ok) return;
+    const data = await response.json();
+    for (const nudge of data.nudges || []) pushMessage('assistant', `${nudge.message}\n\n${nudge.reason}`);
+    if (data.nudges?.length && $('#reminder-dialog').open) await loadReminders();
+  } catch { /* Reminder checks must not interrupt chat when the local service is unavailable. */ }
+}
+
 function renderRecent(items) {
   const list = $('#recent-conversations'); list.replaceChildren();
   for (const item of items) {
@@ -298,6 +346,29 @@ $('#show-knowledge').addEventListener('click', async () => {
   $('#knowledge-dialog').showModal(); $('#knowledge-status').textContent = 'Loading your local files…';
   try { await loadKnowledge(); } catch (error) { $('#knowledge-status').textContent = error.message; }
 });
+const openReminders = async () => {
+  $('#reminder-dialog').showModal(); await loadReminders();
+};
+$('#show-reminders').addEventListener('click', openReminders);
+$('#show-reminders-mobile').addEventListener('click', openReminders);
+$('#reminder-refresh').addEventListener('click', loadReminders);
+$('#reminder-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const objective = $('#reminder-objective').value.trim();
+  const localTime = $('#reminder-at').value;
+  const button = $('#reminder-save'); button.disabled = true;
+  try {
+    const response = await fetch('/tasks', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({objective, scope: 'User-created reminder; no external action is authorized.', remind_at: new Date(localTime).toISOString()}),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || 'Could not save this reminder.');
+    $('#reminder-objective').value = ''; $('#reminder-at').value = '';
+    await loadReminders();
+  } catch (error) { $('#reminder-status').textContent = error.message; }
+  finally { button.disabled = false; }
+});
 $('#knowledge-form').addEventListener('submit', async event => {
   event.preventDefault(); const input = $('#knowledge-file'); const file = input.files?.[0]; if (!file) return;
   const button = $('#knowledge-add'); button.disabled = true; button.textContent = 'Indexing…'; $('#knowledge-status').textContent = `Adding ${file.name}…`;
@@ -365,3 +436,6 @@ async function boot() {
   }
 }
 boot();
+checkCaretakerNudges();
+window.setInterval(checkCaretakerNudges, 30000);
+document.addEventListener('visibilitychange', checkCaretakerNudges);

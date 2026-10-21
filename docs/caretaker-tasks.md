@@ -36,3 +36,24 @@ timeouts, cancellation of live work, automated recovery, and proactive checks
 are not implemented by this task ledger. Completion evidence is supplied by the
 authenticated caller; Diya does not independently validate it until a verified
 tool execution layer is added.
+
+## Reminder and decision rules
+
+The Reminders view lets the owner schedule a one-time prompt. Diya's visible app
+polls `GET /caretaker/nudges` every 30 seconds while the page is open and visible.
+The API claims due prompts in the local task ledger, so a reminder is delivered
+once even across a restart. Keep the app open to see prompts near their
+scheduled time; there is no operating-system notification service or background
+delivery when the browser is closed.
+
+The decision order is deterministic and explainable:
+
+1. A task in `approval_required` is surfaced first, with the reason that Diya is
+   waiting for approval.
+2. A user-scheduled `remind_at` time creates a reminder.
+3. A non-terminal task past `due_at` gets an overdue prompt.
+
+Each prompt includes its trigger and a short reason. The LLM does not invent
+reminders or decide to interrupt the owner, and these prompts never execute
+task steps. Times from the web form are converted to UTC before storage. API
+clients must send ISO-8601 timestamps with a timezone offset.

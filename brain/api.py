@@ -59,6 +59,8 @@ class TaskCreateRequest(BaseModel):
     planned_steps: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
         default_factory=list, max_length=50)
     max_steps: int = Field(default=10, ge=1, le=50)
+    due_at: str | None = Field(default=None, max_length=64)
+    remind_at: str | None = Field(default=None, max_length=64)
 
     @field_validator("objective", "scope")
     @classmethod
@@ -66,6 +68,20 @@ class TaskCreateRequest(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("value must contain non-whitespace text")
+        return value
+
+    @field_validator("due_at", "remind_at")
+    @classmethod
+    def times_must_include_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from datetime import datetime
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError("time must be a valid ISO-8601 timestamp") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("time must include a timezone")
         return value
 
 
@@ -418,10 +434,21 @@ def create_app(engine=None, settings=None, browser_opener=None, tts=None, stt=No
                 planned_steps=tuple(req.planned_steps),
                 max_steps=req.max_steps,
                 autonomy=AutonomyLevel(settings.autonomy_level),
+                due_at=req.due_at,
+                remind_at=req.remind_at,
             ))
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         return jsonable_encoder(task)
+
+    @app.get("/caretaker/nudges")
+    def caretaker_nudges():
+        """Return scheduled reminders and approval prompts once when they become due."""
+        try:
+            nudges = caretaker.claim_due_nudges()
+        except OSError as exc:
+            raise HTTPException(500, "Could not save caretaker reminder state.") from exc
+        return {"nudges": nudges}
 
     @app.get("/tasks/{task_id}")
     def get_task(task_id: str):
