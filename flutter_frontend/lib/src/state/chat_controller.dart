@@ -31,6 +31,8 @@ class ChatController extends ChangeNotifier {
   DiyaApiClient? _api;
   StreamSubscription<QueryEvent>? _querySub;
   DateTime _lastFlush = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime? _lastQuestionSubmittedAt;
+  String? _lastQuestionSubmitted;
   final StringBuffer _pendingDeltas = StringBuffer();
   ChatMessage? _streamingMessage;
 
@@ -195,6 +197,15 @@ class ChatController extends ChangeNotifier {
     final client = _api;
     final text = question.trim();
     if (text.isEmpty || busy || client == null) return;
+    final now = DateTime.now();
+    if (text == _lastQuestionSubmitted &&
+        _lastQuestionSubmittedAt != null &&
+        now.difference(_lastQuestionSubmittedAt!) <
+            const Duration(milliseconds: 900)) {
+      return;
+    }
+    _lastQuestionSubmitted = text;
+    _lastQuestionSubmittedAt = now;
     messages.add(ChatMessage(role: 'user', content: text));
     busy = true;
     error = null;
