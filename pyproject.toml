@@ -5,7 +5,7 @@ description = "Personal AI brain - local RAG over your own material"
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.15.0",
-    "fastapi>=0.144.0",
+    "fastapi>=0.162.0",
     "httpx>=0.28.1",
     "llama-index-core>=0.14.25",
     "llama-index-embeddings-ollama>=0.10.0",
